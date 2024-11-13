@@ -21,6 +21,7 @@ pub(crate) trait Print<Config, Context = ()> {
 }
 
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct Config {
     pub is_pretty: bool,
     pub indent: usize,
