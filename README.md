@@ -42,13 +42,14 @@ You can run this example with `cargo run --example readme`, and see the `example
 ## Projects using xmlem
 
 - [kbdgen](https://github.com/divvun/kbdgen): a keyboard layout generation tool used by minority and indigenous language communities
-- [xml-pretty](https://github.com/bbqsrc/xml-pretty): a command line XML prettifier
+- [xml-pretty](https://github.com/xmlem/xml-pretty): a command line XML prettifier
 
 ## License
 
 This project is licensed under either of
 
- * Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
 at your option.
+

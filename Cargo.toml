@@ -5,7 +5,7 @@ authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
 version = "0.2.3"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/bbqsrc/xmlem"
+repository = "https://github.com/xmlem/xmlem"
 categories = ["encoding", "data-structures"]
 keywords = ["xml", "dom", "mlem", "css"]
 
