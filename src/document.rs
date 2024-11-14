@@ -529,6 +529,7 @@ impl std::str::FromStr for Document {
 #[non_exhaustive]
 pub enum ReadError {
     Parse(quick_xml::Error),
+    Encoding(Utf8Error),
     SupplementaryElement(String),
     Unexpected(String),
     Name(qname::Error),
@@ -538,6 +539,7 @@ impl fmt::Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ReadError::Parse(err) => fmt::Display::fmt(err, f),
+            ReadError::Encoding(err) => fmt::Display::fmt(err, f),
             ReadError::Name(err) => fmt::Display::fmt(err, f),
             ReadError::SupplementaryElement(name) => {
                 write!(f, "Supplementary element after root: {name}")
@@ -551,10 +553,11 @@ impl fmt::Display for ReadError {
 
 impl Error for ReadError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        if let Self::Parse(err) = self {
-            err.source()
-        } else {
-            None
+        match self {
+            Self::Parse(err) => err.source(),
+            Self::Encoding(err) => err.source(),
+            Self::Name(err) => err.source(),
+            Self::SupplementaryElement(..) | Self::Unexpected(..) => None,
         }
     }
 }
@@ -567,7 +570,7 @@ impl From<quick_xml::Error> for ReadError {
 
 impl From<Utf8Error> for ReadError {
     fn from(err: Utf8Error) -> Self {
-        Self::Parse(err.into())
+        Self::Encoding(err)
     }
 }
 
