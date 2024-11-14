@@ -373,7 +373,7 @@ impl Document {
                         let value = attr.unescape_value()?;
                         let s = std::str::from_utf8(attr.key.into_inner())?;
 
-                        root.set_attribute(&mut document, s, &value);
+                        root.set_attribute(&mut document, s.parse::<QName>()?, &value);
                     }
 
                     break document;

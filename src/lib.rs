@@ -331,6 +331,13 @@ mod tests {
     }
 
     #[test]
+    fn set_attribute() {
+        let mut doc = Document::from_str("<foo>").unwrap();
+        doc.root().set_attribute(&mut doc, "bar", "baz");
+        assert_eq!(doc.root().attribute(&doc, "bar"), Some("baz"));
+    }
+
+    #[test]
     fn pretty_minimizes_whitespace() {
         let doc = Document::from_str("<text>\n    Actual Output\n    </text>").unwrap();
         assert_eq!(doc.to_string_pretty(), "<text>\n  Actual Output\n</text>\n");
@@ -386,5 +393,6 @@ mod tests {
         parse_buffer(b"<root><elem a=\"&\"></elem></root>").unwrap_err();
         parse_buffer(b"<root><elem \xA1=\"\"></elem></root>").unwrap_err();
         parse_buffer(b"<root><elem \x00=\"\"></elem></root>").unwrap_err();
+        parse_buffer(b"<a <=\"\"/>").unwrap_err();
     }
 }

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use qname::QName;
@@ -463,20 +465,24 @@ impl Element {
     /// # use qname::qname;
     /// let mut doc = xmlem::Document::new("root");
     /// doc.root().set_attribute(&mut doc, "a:b", "c");
-    /// doc.root().set_attribute(&mut doc, "d", "e");
+    /// doc.root().set_attribute(&mut doc, qname!("d"), "e");
     /// assert_eq!(doc.to_string(), r#"<root a:b="c" d="e"/>"#);
     /// ```
     ///
     /// # Panics
     ///
     /// This method panics if `name` is not a valid attribute name.
-    pub fn set_attribute(&self, document: &mut Document, name: &str, value: &str) {
+    pub fn set_attribute<N>(&self, document: &mut Document, name: N, value: &str)
+    where
+        N: TryInto<QName>,
+        <N as TryInto<QName>>::Error: fmt::Debug,
+    {
         if !document.attrs.contains_key(self.0) {
             document.attrs.insert(self.0, Default::default());
         }
 
         let attrs = document.attrs.get_mut(self.0).unwrap();
-        attrs.insert(name.parse().unwrap(), value.into());
+        attrs.insert(name.try_into().unwrap(), value.into());
     }
 
     /// Remove an attribute on this element.
