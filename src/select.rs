@@ -1,15 +1,17 @@
 use std::borrow::Borrow;
+use std::hash::Hasher;
 
 use cssparser::{CowRcStr, ParseError, SourceLocation};
+use precomputed_hash::PrecomputedHash;
 use qname::QName;
 use selectors::attr::{AttrSelectorOperation, CaseSensitivity, NamespaceConstraint};
-use selectors::context::{IgnoreNthChildForInvalidation, NeedsSelectorFlags, QuirksMode};
+use selectors::context::{MatchingForInvalidation, NeedsSelectorFlags, QuirksMode, SelectorCaches};
 use selectors::parser::{
     NonTSPseudoClass, ParseRelative, Parser, Selector as GenericSelector, SelectorImpl,
     SelectorList,
 };
 use selectors::parser::{PseudoElement, SelectorParseErrorKind};
-use selectors::{self, matching, NthIndexCache, OpaqueElement};
+use selectors::{self, matching, OpaqueElement};
 
 use crate::{Document, Element};
 
@@ -17,32 +19,82 @@ use crate::{Document, Element};
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Value(String);
+pub struct PrehashedString {
+    val: String,
+    hash: u32,
+}
+
+impl PrehashedString {
+    fn as_str(&self) -> &str {
+        &self.val
+    }
+
+    fn new(s: impl Into<String>) -> Self {
+        let s = s.into();
+        Self {
+            hash: hash(&s),
+            val: s,
+        }
+    }
+}
+
+fn hash(s: &str) -> u32 {
+    let mut hasher = std::hash::DefaultHasher::new();
+    std::hash::Hash::hash(&s, &mut hasher);
+    hasher.finish() as u32
+}
+
+impl Borrow<String> for PrehashedString {
+    fn borrow(&self) -> &String {
+        &self.val
+    }
+}
+
+impl PrecomputedHash for PrehashedString {
+    fn precomputed_hash(&self) -> u32 {
+        self.hash
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Value(PrehashedString);
+
+impl Value {
+    fn as_str(&self) -> &str {
+        &self.0.as_str()
+    }
+}
 
 impl cssparser::ToCss for Value {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
     where
         W: std::fmt::Write,
     {
-        write!(dest, "{}", self.0)
+        write!(dest, "{}", self.as_str())
+    }
+}
+
+impl PrecomputedHash for Value {
+    fn precomputed_hash(&self) -> u32 {
+        self.0.precomputed_hash()
     }
 }
 
 impl From<&str> for Value {
     fn from(x: &str) -> Self {
-        Value(x.to_string())
+        Value(PrehashedString::new(x))
     }
 }
 
 impl AsRef<str> for Value {
     fn as_ref(&self) -> &str {
-        &self.0
+        &self.as_str()
     }
 }
 
 impl Borrow<String> for Value {
     fn borrow(&self) -> &String {
-        &self.0
+        &self.0.val
     }
 }
 
@@ -67,7 +119,7 @@ impl SelectorImpl for Selectors {
     type AttrValue = Value;
     type Identifier = Value;
     type LocalName = Value;
-    type NamespaceUrl = String;
+    type NamespaceUrl = PrehashedString;
     type NamespacePrefix = Value;
     type BorrowedNamespaceUrl = String;
     type BorrowedLocalName = String;
@@ -150,10 +202,12 @@ impl selectors::Element for ElementRef<'_> {
         let attrs = self.element.attributes(self.document);
 
         let qname = match ns {
-            NamespaceConstraint::Any => QName::new_unchecked(&local_name.0),
-            NamespaceConstraint::Specific(ns) if ns == &"" => QName::new_unchecked(&local_name.0),
+            NamespaceConstraint::Any => QName::new_unchecked(local_name.as_ref()),
+            NamespaceConstraint::Specific(ns) if ns.as_str() == "" => {
+                QName::new_unchecked(local_name.as_str())
+            }
             NamespaceConstraint::Specific(ns) => {
-                QName::new_unchecked(&format!("{}:{}", ns, local_name.0))
+                QName::new_unchecked(&format!("{}:{}", ns.as_str(), local_name.as_str()))
             }
         };
 
@@ -194,7 +248,7 @@ impl selectors::Element for ElementRef<'_> {
         case_sensitivity: CaseSensitivity,
     ) -> bool {
         match self.element.attribute(self.document, "id") {
-            Some(x) => case_sensitivity.eq(x.as_bytes(), id.0.as_bytes()),
+            Some(x) => case_sensitivity.eq(x.as_bytes(), id.as_str().as_bytes()),
             None => false,
         }
     }
@@ -207,7 +261,7 @@ impl selectors::Element for ElementRef<'_> {
         match self.element.attribute(self.document, "class") {
             Some(x) => x
                 .split_whitespace()
-                .any(|x| case_sensitivity.eq(x.as_bytes(), name.0.as_bytes())),
+                .any(|x| case_sensitivity.eq(x.as_bytes(), name.as_str().as_bytes())),
             None => false,
         }
     }
@@ -243,6 +297,14 @@ impl selectors::Element for ElementRef<'_> {
     }
 
     fn apply_selector_flags(&self, _flags: matching::ElementSelectorFlags) {}
+
+    fn has_custom_state(&self, _name: &<Self::Impl as SelectorImpl>::Identifier) -> bool {
+        false
+    }
+
+    fn add_element_unique_hashes(&self, _filter: &mut selectors::bloom::BloomFilter) -> bool {
+        false
+    }
 }
 
 struct TheParser;
@@ -278,7 +340,13 @@ impl Selector {
             &mut cssparser::Parser::new(&mut input),
             ParseRelative::No,
         ) {
-            Ok(list) => Ok(Selector(list.0.into_iter().map(SelectorInner).collect())),
+            Ok(list) => Ok(Selector(
+                list.slice()
+                    .into_iter()
+                    .cloned()
+                    .map(SelectorInner)
+                    .collect(),
+            )),
             Err(e) => Err(e),
         }
     }
@@ -286,14 +354,14 @@ impl Selector {
     /// Returns whether the given element matches this selector.
     #[inline]
     pub fn matches(&self, document: &Document, element: Element) -> bool {
-        let mut cache = NthIndexCache::default();
+        let mut cache = SelectorCaches::default();
         let mut context = matching::MatchingContext::new(
             matching::MatchingMode::Normal,
             None,
             &mut cache,
             QuirksMode::NoQuirks,
             NeedsSelectorFlags::No,
-            IgnoreNthChildForInvalidation::No,
+            MatchingForInvalidation::No,
         );
         self.0.iter().any(|s| {
             matching::matches_selector(
