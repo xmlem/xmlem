@@ -53,21 +53,28 @@ impl From<Element> for Node {
 ///
 /// # Panics
 ///
-/// Converting to `NewElement` panics on non-representable elements and attributes names.
+/// Converting to `NewElement` (using [`From`]) panics on non-representable elements and attributes
+/// names.
 #[derive(Debug, Clone)]
 pub struct NewElement {
     pub name: QName,
     pub attrs: IndexMap<QName, String>,
 }
 
-impl<const N: usize, T: ToString, U: ToString, V: ToString> From<(T, [(U, V); N])> for NewElement {
-    fn from(x: (T, [(U, V); N])) -> Self {
+impl<const AT_N: usize, QN, AtK, AtV> From<(QN, [(AtK, AtV); AT_N])> for NewElement
+where
+    QN: TryInto<QName>,
+    <QN as TryInto<QName>>::Error: fmt::Debug,
+    AtK: TryInto<QName>,
+    <AtK as TryInto<QName>>::Error: fmt::Debug,
+    AtV: ToString,
+{
+    fn from((name, attrs): (QN, [(AtK, AtV); AT_N])) -> Self {
         NewElement {
-            name: x.0.to_string().parse().unwrap(),
-            attrs: x
-                .1
+            name: name.try_into().unwrap(),
+            attrs: attrs
                 .into_iter()
-                .map(|x| (x.0.to_string().parse().unwrap(), x.1.to_string()))
+                .map(|x| (x.0.try_into().unwrap(), x.1.to_string()))
                 .collect(),
         }
     }
