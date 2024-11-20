@@ -16,7 +16,7 @@ use crate::{
     element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
     value::{ElementValue, NodeValue},
-    Node,
+    NewElement, Node,
 };
 use tracing::debug;
 
@@ -125,15 +125,36 @@ pub fn ord_elem(ec1: &ElementAndContext, ec2: &ElementAndContext) -> Ordering {
 }
 
 impl Document {
-    pub fn new(root_name: &str) -> Self {
+    /// Create a new document with the specified element as root.
+    ///
+    /// See [`NewElement`] for what `root` accepts.
+    ///
+    /// ```
+    /// assert_eq!(
+    ///     xmlem::Document::new("root").to_string(),
+    ///     r#"<root/>"#,
+    /// );
+    /// assert_eq!(
+    ///     xmlem::Document::new(("a", [("b", "c")])).to_string(),
+    ///     r#"<a b="c"/>"#,
+    /// );
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This method panics if `root` contains non-representable element or attribute names.
+    pub fn new(root: impl Into<NewElement>) -> Self {
+        let root = root.into();
+
         let mut nodes = SlotMap::with_key();
         let parents = SparseSecondaryMap::new();
-        let attrs = SparseSecondaryMap::new();
+        let mut attrs = SparseSecondaryMap::<DocKey, IndexMap<QName, String>>::new();
 
         let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
-            name: root_name.parse().unwrap(),
+            name: root.name,
             children: vec![],
         })));
+        attrs.insert(root_key.0, root.attrs);
 
         Self {
             nodes,

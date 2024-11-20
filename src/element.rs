@@ -80,6 +80,24 @@ where
     }
 }
 
+impl From<&'_ str> for NewElement {
+    fn from(name: &str) -> Self {
+        NewElement {
+            name: name.try_into().unwrap(),
+            attrs: IndexMap::default(),
+        }
+    }
+}
+
+impl From<QName> for NewElement {
+    fn from(name: QName) -> Self {
+        NewElement {
+            name,
+            attrs: IndexMap::default(),
+        }
+    }
+}
+
 impl Element {
     pub fn as_node(&self) -> Node {
         Node::from(*self)
