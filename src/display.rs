@@ -21,14 +21,13 @@ pub(crate) trait Print<Config, Context = ()> {
 }
 
 #[derive(Debug, Clone, Default)]
-#[non_exhaustive]
 pub struct Config {
-    pub is_pretty: bool,
-    pub indent: usize,
-    pub end_pad: usize,
-    pub max_line_length: usize,
-    pub entity_mode: EntityMode,
-    pub indent_text_nodes: bool,
+    pub(crate) is_pretty: bool,
+    pub(crate) indent: usize,
+    pub(crate) end_pad: usize,
+    pub(crate) max_line_length: usize,
+    pub(crate) entity_mode: EntityMode,
+    pub(crate) indent_text_nodes: bool,
 }
 
 impl Config {
@@ -41,6 +40,31 @@ impl Config {
             entity_mode: EntityMode::Standard,
             indent_text_nodes: true,
         }
+    }
+
+    pub fn indent(mut self, indent: usize) -> Self {
+        self.indent = indent;
+        self
+    }
+
+    pub fn end_pad(mut self, end_pad: usize) -> Self {
+        self.end_pad = end_pad;
+        self
+    }
+
+    pub fn max_line_length(mut self, max_line_length: usize) -> Self {
+        self.max_line_length = max_line_length;
+        self
+    }
+
+    pub fn entity_mode(mut self, entity_mode: EntityMode) -> Self {
+        self.entity_mode = entity_mode;
+        self
+    }
+
+    pub fn indent_text_nodes(mut self, indent_text_nodes: bool) -> Self {
+        self.indent_text_nodes = indent_text_nodes;
+        self
     }
 }
 
@@ -445,6 +469,7 @@ impl Print<Config, State<'_>> for NodeValue {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum EntityMode {
     Standard,
     Hex,
