@@ -23,7 +23,7 @@ impl NodeValue {
             NodeValue::Text(x)
             | NodeValue::CData(x)
             | NodeValue::Comment(x)
-            | NodeValue::DocumentType(x) => Some(&*x),
+            | NodeValue::DocumentType(x) => Some(x),
             NodeValue::Element(_) => None,
         }
     }

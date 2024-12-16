@@ -167,12 +167,12 @@ impl Document {
         }
     }
 
-    fn sort_nodes(&self, nodes_orig: &Vec<Node>) -> Vec<Node> {
+    fn sort_nodes(&self, nodes_orig: &[Node]) -> Vec<Node> {
         if nodes_orig.len() < 2 {
-            return nodes_orig.clone();
+            return nodes_orig.to_owned();
         }
 
-        let nodes = nodes_orig.clone();
+        let nodes = nodes_orig.to_owned();
 
         let mut pre = vec![];
         let mut elems = vec![];
@@ -206,7 +206,7 @@ impl Document {
             we thus consider all elements to be inline-elements \
             (think of the *bold* element in HTML), and thus we will not sort them."
             );
-            return nodes_orig.clone();
+            return nodes_orig.to_owned();
         }
 
         elems.sort_by(ord_elem);

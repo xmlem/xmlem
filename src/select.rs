@@ -61,7 +61,7 @@ pub struct Value(PrehashedString);
 
 impl Value {
     fn as_str(&self) -> &str {
-        &self.0.as_str()
+        self.0.as_str()
     }
 }
 
@@ -88,7 +88,7 @@ impl From<&str> for Value {
 
 impl AsRef<str> for Value {
     fn as_ref(&self) -> &str {
-        &self.as_str()
+        self.as_str()
     }
 }
 
@@ -287,7 +287,7 @@ impl selectors::Element for ElementRef<'_> {
 
     fn first_element_child(&self) -> Option<Self> {
         self.element
-            .children(&self.document)
+            .children(self.document)
             .into_iter()
             .next()
             .map(|child| Self {
@@ -341,11 +341,7 @@ impl Selector {
             ParseRelative::No,
         ) {
             Ok(list) => Ok(Selector(
-                list.slice()
-                    .into_iter()
-                    .cloned()
-                    .map(SelectorInner)
-                    .collect(),
+                list.slice().iter().cloned().map(SelectorInner).collect(),
             )),
             Err(e) => Err(e),
         }

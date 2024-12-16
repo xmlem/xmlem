@@ -90,7 +90,7 @@ mod tests {
             },
         );
 
-        foo.parent(&mut doc)
+        foo.parent(&doc)
             .unwrap()
             .remove_child(&mut doc, Node::Element(foo));
 
@@ -206,7 +206,7 @@ mod tests {
         let include_selector = Selector::new("include").expect("this selector is fine");
         let rows_include = doc
             .root()
-            .query_selector(&mut doc, &include_selector)
+            .query_selector(&doc, &include_selector)
             .expect("there should be an include");
 
         let row_append = rows_include.append_new_element_after(
