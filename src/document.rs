@@ -391,7 +391,7 @@ impl Document {
                     }
 
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_value()?;
+                        let value = attr.decode_and_unescape_value(r.decoder())?;
                         let s = std::str::from_utf8(attr.key.into_inner())?;
 
                         root.set_attribute(&mut document, s.parse::<QName>()?, &value);
@@ -446,7 +446,7 @@ impl Document {
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_value()?.to_string();
+                        let value = attr.decode_and_unescape_value(r.decoder())?.to_string();
                         attrs.insert(std::str::from_utf8(attr.key.into_inner())?.parse()?, value);
                     }
                     let element =
@@ -465,7 +465,7 @@ impl Document {
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_value()?.to_string();
+                        let value = attr.decode_and_unescape_value(r.decoder())?.to_string();
                         attrs.insert(std::str::from_utf8(attr.key.into_inner())?.parse()?, value);
                     }
                     parent.append_new_element(&mut doc, crate::NewElement { name, attrs });
