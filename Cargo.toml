@@ -2,7 +2,7 @@
 name = "xmlem"
 description = "XML DOM implementation with pretty printing"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/xmlem/xmlem"
