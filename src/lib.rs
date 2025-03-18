@@ -395,4 +395,12 @@ mod tests {
         parse_buffer(b"<root><elem \x00=\"\"></elem></root>").unwrap_err();
         parse_buffer(b"<a <=\"\"/>").unwrap_err();
     }
+
+    #[test]
+    fn test_ampersand_in_comment() {
+        let input = r#"<root><!-- This & that --></root>"#;
+        let doc = Document::from_str(input).unwrap();
+        let out = format!("{}", doc);
+        assert_eq!(out, "<root><!-- This & that --></root>");
+    }
 }

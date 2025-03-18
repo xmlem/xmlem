@@ -503,7 +503,8 @@ impl Document {
                     }
                 }
                 Ok(Event::Comment(comment)) => {
-                    let text = comment.unescape()?;
+                    let comment = comment.into_inner();
+                    let text = std::str::from_utf8(comment.as_ref())?;
                     match element_stack.last() {
                         Some(el) => {
                             el.append_comment(&mut doc, &text);
