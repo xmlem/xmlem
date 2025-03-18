@@ -411,8 +411,10 @@ impl Document {
                     )));
                 }
                 Ok(Event::Comment(e)) => {
+                    let comment = e.into_inner();
+                    let text = std::str::from_utf8(comment.as_ref())?;
                     before.push(Node::Comment(Comment(
-                        nodes.insert(NodeValue::Comment(e.unescape()?.to_string())),
+                        nodes.insert(NodeValue::Comment(text.to_string())),
                     )));
                 }
                 Ok(Event::CData(e)) => {
