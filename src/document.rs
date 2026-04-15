@@ -16,7 +16,7 @@ use slotmap::{SlotMap, SparseSecondaryMap};
 use crate::{
     display::{self, Config, Print, State},
     element::Element,
-    key::{CDataSection, Comment, DocKey, DocumentType, Text},
+    key::{CDataSection, Comment, DocKey, DocumentType, ProcessingInstruction, Text},
     value::{ElementValue, NodeValue},
     NewElement, Node,
 };
@@ -447,8 +447,11 @@ impl Document {
                         nodes.insert(NodeValue::CData(text.to_owned())),
                     )));
                 }
-                Ok(Event::PI(_)) => {
-                    continue;
+                Ok(Event::PI(pi)) => {
+                    let text = std::str::from_utf8(pi.as_ref())?;
+                    before.push(Node::ProcessingInstruction(ProcessingInstruction(
+                        nodes.insert(NodeValue::ProcessingInstruction(text.to_string())),
+                    )));
                 }
                 Ok(other @ (Event::Eof | Event::End(_))) => {
                     return Err(ReadError::Unexpected(format!("{other:?}")))
@@ -560,8 +563,20 @@ impl Document {
                         }
                     }
                 }
-                Ok(Event::PI(_processing_instruction)) => {
-                    continue;
+                Ok(Event::PI(pi)) => {
+                    let text = std::str::from_utf8(pi.as_ref())?;
+                    match element_stack.last() {
+                        Some(el) => {
+                            el.append_processing_instruction(&mut doc, text);
+                        }
+                        None => {
+                            doc.after
+                                .push(Node::ProcessingInstruction(ProcessingInstruction(
+                                    doc.nodes
+                                        .insert(NodeValue::ProcessingInstruction(text.to_string())),
+                                )));
+                        }
+                    }
                 }
                 Ok(Event::Decl(_decl)) => {
                     continue;

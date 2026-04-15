@@ -7,7 +7,7 @@ use qname::QName;
 use crate::{
     display::{self, Print},
     document::Document,
-    key::{CDataSection, Comment, DocKey, Node, Text},
+    key::{CDataSection, Comment, DocKey, Node, ProcessingInstruction, Text},
     select::Selector,
     value::{ElementValue, NodeValue},
 };
@@ -314,6 +314,36 @@ impl Element {
         Comment(new_key)
     }
 
+    /// Create a new processing instruction node and add it to the end of the list of child nodes
+    /// of the current element.
+    ///
+    /// ```
+    /// let mut doc = r#"<root><a/></root>"#.parse::<xmlem::Document>().unwrap();
+    ///
+    /// doc.root().append_processing_instruction(&mut doc, "xml-stylesheet href=\"style.css\"");
+    ///
+    /// assert_eq!(doc.to_string(), r#"<root><a/><?xml-stylesheet href="style.css"?></root>"#);
+    /// ```
+    pub fn append_processing_instruction(
+        self,
+        document: &mut Document,
+        text: &str,
+    ) -> ProcessingInstruction {
+        let new_key = document
+            .nodes
+            .insert(NodeValue::ProcessingInstruction(text.to_string()));
+        document.parents.insert(new_key, self);
+        document
+            .nodes
+            .get_mut(self.0)
+            .unwrap()
+            .as_element_mut()
+            .unwrap()
+            .children
+            .push(Node::ProcessingInstruction(ProcessingInstruction(new_key)));
+        ProcessingInstruction(new_key)
+    }
+
     /// Replace all children nodes of the current element with a text node.
     ///
     /// ```
@@ -574,40 +604,29 @@ impl Element {
 
     pub fn next_sibling_element(&self, doc: &Document) -> Option<Element> {
         let parent = self.parent(doc)?;
-
-        let children = parent.children(doc);
-        let mut index = children
+        let child_nodes = parent.child_nodes(doc);
+        let index = child_nodes
             .iter()
-            .position(|x| x == self)
+            .position(|x| x.as_element() == Some(*self))
             .expect("element has to be child of parent");
-        index += 1;
-
-        if index < children.len() {
-            return Some(children[index]);
-        }
-
-        None
+        child_nodes[index + 1..]
+            .iter()
+            .filter_map(|x| x.as_element())
+            .next()
     }
 
     pub fn prev_sibling_element(&self, doc: &Document) -> Option<Element> {
         let parent = self.parent(doc)?;
-
-        let children = parent.children(doc);
-        let mut index = children
+        let child_nodes = parent.child_nodes(doc);
+        let index = child_nodes
             .iter()
-            .position(|x| x == self)
+            .position(|x| x.as_element() == Some(*self))
             .expect("element has to be child of parent");
-
-        if index == 0 {
-            return None;
-        }
-        index -= 1;
-
-        if index == 0 {
-            return None;
-        }
-
-        Some(children[index])
+        child_nodes[..index]
+            .iter()
+            .rev()
+            .filter_map(|x| x.as_element())
+            .next()
     }
 
     pub fn query_selector(&self, doc: &Document, selector: &Selector) -> Option<Element> {

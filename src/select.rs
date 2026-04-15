@@ -278,7 +278,7 @@ impl selectors::Element for ElementRef<'_> {
     }
 
     fn is_empty(&self) -> bool {
-        self.element.children(self.document).is_empty()
+        self.element.child_nodes(self.document).is_empty()
     }
 
     fn is_root(&self) -> bool {

@@ -452,7 +452,8 @@ impl Print<Config, State<'_>> for NodeValue {
 
         match self {
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE {}>", t),
-            NodeValue::Comment(t) => write!(f, "<!--{}-->", t,),
+            NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
+            NodeValue::ProcessingInstruction(t) => write!(f, "<?{}?>", t),
             NodeValue::Element(_) | NodeValue::Text(_) | NodeValue::CData(_) => unreachable!(),
         }?;
 

@@ -8,6 +8,7 @@ pub(crate) enum NodeValue {
     Text(String),
     CData(String),
     Comment(String),
+    ProcessingInstruction(String),
     DocumentType(String),
 }
 
@@ -23,6 +24,7 @@ impl NodeValue {
             NodeValue::Text(x)
             | NodeValue::CData(x)
             | NodeValue::Comment(x)
+            | NodeValue::ProcessingInstruction(x)
             | NodeValue::DocumentType(x) => Some(x),
             NodeValue::Element(_) => None,
         }
