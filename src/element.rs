@@ -244,6 +244,28 @@ impl Element {
         Text(new_key)
     }
 
+    pub(crate) fn append_text_merge(self, document: &mut Document, text: &str) {
+        if let Some(Node::Text(t)) = document
+            .nodes
+            .get(self.0)
+            .unwrap()
+            .as_element()
+            .unwrap()
+            .children
+            .last()
+        {
+            document
+                .nodes
+                .get_mut(t.0)
+                .unwrap()
+                .as_text_mut()
+                .unwrap()
+                .push_str(text);
+        } else {
+            self.append_text(document, text);
+        }
+    }
+
     /// Create a new CDATA node and add it to the end of the list of child nodes of the current
     /// element.
     ///

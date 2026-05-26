@@ -1,6 +1,10 @@
 ## Unreleased
 
-## 0.4.0
+## 0.4.1
+
+-  Fix entities handling.
+
+## 0.4.0 (yanked)
 
 - [BREAKING] Update dependencies.
 

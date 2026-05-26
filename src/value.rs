@@ -42,6 +42,13 @@ impl NodeValue {
         }
     }
 
+    pub fn as_text_mut(&mut self) -> Option<&mut String> {
+        match self {
+            NodeValue::Text(s) => Some(s),
+            _ => None,
+        }
+    }
+
     pub fn as_document_type(&self) -> Option<&str> {
         match self {
             NodeValue::DocumentType(e) => Some(e),

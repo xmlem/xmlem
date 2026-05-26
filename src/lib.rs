@@ -351,6 +351,26 @@ mod tests {
     }
 
     #[test]
+    fn decoded_entity() {
+        let input = "<root>an &amp;&#x20;here</root>";
+        let doc = Document::from_str(input).unwrap();
+        let root = doc.root();
+        let root_children = root.child_nodes(&doc);
+        assert_eq!(root_children.len(), 1);
+        let Node::Text(text) = root_children[0] else {
+            panic!("Expected child to be a text node");
+        };
+        assert_eq!(text.as_str(&doc), "an & here");
+    }
+
+    #[test]
+    fn char_0_roundtrip() {
+        const EXACT_XML: &str = "<text>&#x0000;</text>";
+        let doc = Document::from_str(EXACT_XML).unwrap();
+        assert_eq!(doc.to_string(), EXACT_XML);
+    }
+
+    #[test]
     fn accepts_pi_before_root() {
         Document::from_str(r#"<?xml-stylesheet href="style.css" type="text/css"?><root/>"#)
             .unwrap();

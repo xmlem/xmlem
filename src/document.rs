@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cmp::{min, Ordering},
     error::Error,
     fmt,
@@ -428,11 +429,8 @@ impl Document {
                     )));
                 }
                 Ok(Event::GeneralRef(r)) => {
-                    if r.is_empty() {
-                        continue;
-                    }
                     before.push(Node::Text(Text(
-                        nodes.insert(NodeValue::Text(r.decode()?.to_string())),
+                        nodes.insert(NodeValue::Text(resolve_ref(&r)?.to_string())),
                     )));
                 }
                 Ok(Event::Comment(e)) => {
@@ -509,7 +507,7 @@ impl Document {
                     if !text.trim().is_empty() {
                         match element_stack.last() {
                             Some(el) => {
-                                el.append_text(&mut doc, &text);
+                                el.append_text_merge(&mut doc, &text);
                             }
                             None => {
                                 doc.after.push(Node::Text(Text(
@@ -520,11 +518,11 @@ impl Document {
                     }
                 }
                 Ok(Event::GeneralRef(r)) => {
-                    let text = r.decode()?;
-                    if !text.trim().is_empty() {
+                    let text = resolve_ref(&r)?;
+                    if !text.is_empty() {
                         match element_stack.last() {
                             Some(el) => {
-                                el.append_text(&mut doc, &text);
+                                el.append_text_merge(&mut doc, &text);
                             }
                             None => {
                                 doc.after.push(Node::Text(Text(
@@ -585,6 +583,25 @@ impl Document {
     }
 }
 
+fn resolve_ref<'a>(b_ref: &'a quick_xml::events::BytesRef) -> Result<Cow<'a, str>, ReadError> {
+    let decoded = b_ref.decode()?;
+
+    if let Some(ent) = quick_xml::escape::resolve_xml_entity(&decoded) {
+        return Ok(Cow::Borrowed(ent));
+    }
+
+    // `resolve_char_ref` Considers the null character an error here.
+    if decoded == "#00" || (decoded.starts_with("#x0") && decoded.chars().skip(3).all(|c| c == '0'))
+    {
+        return Ok(Cow::Borrowed("\0"));
+    }
+
+    match b_ref.resolve_char_ref()? {
+        Some(c) => Ok(Cow::Owned(c.to_string())),
+        None => Err(ReadError::UnknownEntity((**b_ref).to_owned())),
+    }
+}
+
 impl std::str::FromStr for Document {
     type Err = ReadError;
 
@@ -601,6 +618,7 @@ pub enum ReadError {
     SupplementaryElement(String),
     Unexpected(String),
     Name(qname::Error),
+    UnknownEntity(Vec<u8>),
 }
 
 impl fmt::Display for ReadError {
@@ -615,6 +633,10 @@ impl fmt::Display for ReadError {
             ReadError::Unexpected(description) => {
                 write!(f, "Unexpected: {description}")
             }
+            ReadError::UnknownEntity(raw) => {
+                let disp = String::from_utf8_lossy(raw);
+                write!(f, "Unknown entity: &{disp};")
+            }
         }
     }
 }
@@ -625,7 +647,9 @@ impl Error for ReadError {
             Self::Parse(err) => err.source(),
             Self::Encoding(err) => err.source(),
             Self::Name(err) => err.source(),
-            Self::SupplementaryElement(..) | Self::Unexpected(..) => None,
+            Self::SupplementaryElement(..)
+            | Self::Unexpected(..)
+            | ReadError::UnknownEntity(..) => None,
         }
     }
 }
