@@ -333,7 +333,7 @@ struct SelectorInner(GenericSelector<Selectors>);
 pub struct Selector(Vec<SelectorInner>);
 
 impl Selector {
-    pub fn new(s: &str) -> Result<Selector, ParseError<SelectorParseErrorKind>> {
+    pub fn new(s: &str) -> Result<Selector, ParseError<'_, SelectorParseErrorKind<'_>>> {
         let mut input = cssparser::ParserInput::new(s);
         match SelectorList::parse(
             &TheParser,

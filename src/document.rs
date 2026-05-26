@@ -9,6 +9,7 @@ use std::{
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use qname::QName;
+use quick_xml::{encoding::EncodingError, XmlVersion};
 use slotmap::{SlotMap, SparseSecondaryMap};
 
 use crate::{
@@ -40,10 +41,13 @@ pub struct Declaration {
     pub standalone: Option<String>,
 }
 
+const XML_VERSION_1_0: &str = "1.0";
+const XML_VERSION_1_1: &str = "1.1";
+
 impl Declaration {
     pub fn v1_0() -> Self {
         Self {
-            version: Some("1.0".to_string()),
+            version: Some(XML_VERSION_1_0.to_string()),
             encoding: Some("utf-8".to_string()),
             standalone: None,
         }
@@ -51,7 +55,7 @@ impl Declaration {
 
     pub fn v1_1() -> Self {
         Self {
-            version: Some("1.1".to_string()),
+            version: Some(XML_VERSION_1_1.to_string()),
             encoding: Some("utf-8".to_string()),
             standalone: None,
         }
@@ -339,11 +343,13 @@ impl Document {
         let mut before: Vec<Node> = vec![];
         let mut element_stack = vec![];
 
+        let mut xml_version = XmlVersion::Implicit1_0;
+
         let mut doc = loop {
             match r.read_event_into(&mut buf) {
                 Ok(Event::DocType(d)) => {
                     before.push(Node::DocumentType(DocumentType(
-                        nodes.insert(NodeValue::DocumentType(d.unescape()?.trim().to_string())),
+                        nodes.insert(NodeValue::DocumentType(d.decode()?.trim().to_string())),
                     )));
                 }
                 Ok(Event::Decl(d)) => {
@@ -351,6 +357,17 @@ impl Document {
                         .version()
                         .ok()
                         .and_then(|x| std::str::from_utf8(&x).ok().map(ToString::to_string));
+
+                    match version.as_deref() {
+                        Some(XML_VERSION_1_0) => {
+                            xml_version = XmlVersion::Explicit1_0;
+                        }
+                        Some(XML_VERSION_1_1) => {
+                            xml_version = XmlVersion::Explicit1_1;
+                        }
+                        _ => {}
+                    }
+
                     let standalone = d.standalone().and_then(|x| match x {
                         Ok(x) => std::str::from_utf8(&x).ok().map(ToString::to_string),
                         Err(_) => None,
@@ -391,7 +408,7 @@ impl Document {
                     }
 
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.decode_and_unescape_value(r.decoder())?;
+                        let value = attr.decoded_and_normalized_value(xml_version, r.decoder())?;
                         let s = std::str::from_utf8(attr.key.into_inner())?;
 
                         root.set_attribute(&mut document, s.parse::<QName>()?, &value);
@@ -403,11 +420,19 @@ impl Document {
                     if e.len() == 0 {
                         continue;
                     }
-                    if e.unescape().map(|x| x.trim().is_empty()).unwrap_or(false) {
+                    if e.decode().map(|x| x.trim().is_empty()).unwrap_or(false) {
                         continue;
                     }
                     before.push(Node::Text(Text(
-                        nodes.insert(NodeValue::Text(e.unescape()?.to_string())),
+                        nodes.insert(NodeValue::Text(e.decode()?.to_string())),
+                    )));
+                }
+                Ok(Event::GeneralRef(r)) => {
+                    if r.len() == 0 {
+                        continue;
+                    }
+                    before.push(Node::Text(Text(
+                        nodes.insert(NodeValue::Text(r.decode()?.to_string())),
                     )));
                 }
                 Ok(Event::Comment(e)) => {
@@ -448,7 +473,9 @@ impl Document {
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.decode_and_unescape_value(r.decoder())?.to_string();
+                        let value = attr
+                            .decoded_and_normalized_value(xml_version, r.decoder())?
+                            .to_string();
                         attrs.insert(std::str::from_utf8(attr.key.into_inner())?.parse()?, value);
                     }
                     let element =
@@ -467,7 +494,9 @@ impl Document {
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.decode_and_unescape_value(r.decoder())?.to_string();
+                        let value = attr
+                            .decoded_and_normalized_value(xml_version, r.decoder())?
+                            .to_string();
                         attrs.insert(std::str::from_utf8(attr.key.into_inner())?.parse()?, value);
                     }
                     parent.append_new_element(&mut doc, crate::NewElement { name, attrs });
@@ -476,7 +505,22 @@ impl Document {
                     element_stack.pop();
                 }
                 Ok(Event::Text(e)) => {
-                    let text = e.unescape()?;
+                    let text = e.decode()?;
+                    if !text.trim().is_empty() {
+                        match element_stack.last() {
+                            Some(el) => {
+                                el.append_text(&mut doc, &text);
+                            }
+                            None => {
+                                doc.after.push(Node::Text(Text(
+                                    doc.nodes.insert(NodeValue::Text(text.to_string())),
+                                )));
+                            }
+                        }
+                    }
+                }
+                Ok(Event::GeneralRef(r)) => {
+                    let text = r.decode()?;
                     if !text.trim().is_empty() {
                         match element_stack.last() {
                             Some(el) => {
@@ -553,7 +597,7 @@ impl std::str::FromStr for Document {
 #[non_exhaustive]
 pub enum ReadError {
     Parse(quick_xml::Error),
-    Encoding(Utf8Error),
+    Encoding(quick_xml::encoding::EncodingError),
     SupplementaryElement(String),
     Unexpected(String),
     Name(qname::Error),
@@ -594,6 +638,12 @@ impl From<quick_xml::Error> for ReadError {
 
 impl From<Utf8Error> for ReadError {
     fn from(err: Utf8Error) -> Self {
+        Self::Encoding(EncodingError::Utf8(err))
+    }
+}
+
+impl From<EncodingError> for ReadError {
+    fn from(err: EncodingError) -> Self {
         Self::Encoding(err)
     }
 }

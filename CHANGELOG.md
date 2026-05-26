@@ -1,5 +1,25 @@
 ## Unreleased
 
+## 0.4.0
+
+- [BREAKING] Update dependencies.
+
+## 0.3.3
+
+- Fix handling of `&` in comments ([#13]).
+
+## 0.3.2
+
+- Fix handling of `&` in comments ([#13]).
+
+[#13]: https://github.com/xmlem/xmlem/issues/13
+
+## 0.3.1
+
+- Fix compilation when `quick-xml/encoding` is enabled ([#12]).
+
+[#12]: https://github.com/xmlem/xmlem/issues/12
+
 ## 0.3.0
 
 - [BREAKING] Revert `Element::name` to previous behavior of including prefix

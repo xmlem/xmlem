@@ -366,13 +366,13 @@ mod tests {
         parse_buffer(b"<?xml other?><root/>").unwrap();
         parse_buffer(b"<?xml version=\"1.1\" standalone=\"\xA1\"?><root/>").unwrap();
         parse_buffer(b"<?xml version=\"1.1\" encoding=\"\xA1\"?><root/>").unwrap();
+        parse_buffer(b"<!DOCTYPE a=\"&\"><root/>").unwrap();
     }
 
     #[test]
     fn erroring_invalids() {
         parse_buffer(b"").unwrap_err();
         parse_buffer(b"</root>").unwrap_err();
-        parse_buffer(b"<!DOCTYPE a=\"&\"><root/>").unwrap_err();
         parse_buffer(b"<!DOCTYPE \xA1><root/>").unwrap_err();
         parse_buffer(b"&").unwrap_err();
         parse_buffer(b"<!-- & -->").unwrap_err();
