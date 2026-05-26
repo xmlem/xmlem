@@ -417,7 +417,7 @@ impl Document {
                     break document;
                 }
                 Ok(Event::Text(e)) => {
-                    if e.len() == 0 {
+                    if e.is_empty() {
                         continue;
                     }
                     if e.decode().map(|x| x.trim().is_empty()).unwrap_or(false) {
@@ -428,7 +428,7 @@ impl Document {
                     )));
                 }
                 Ok(Event::GeneralRef(r)) => {
-                    if r.len() == 0 {
+                    if r.is_empty() {
                         continue;
                     }
                     before.push(Node::Text(Text(
@@ -553,7 +553,7 @@ impl Document {
                     let text = std::str::from_utf8(comment.as_ref())?;
                     match element_stack.last() {
                         Some(el) => {
-                            el.append_comment(&mut doc, &text);
+                            el.append_comment(&mut doc, text);
                         }
                         None => {
                             doc.after.push(Node::Comment(Comment(

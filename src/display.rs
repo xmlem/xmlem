@@ -464,17 +464,12 @@ impl Print<Config, State<'_>> for NodeValue {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EntityMode {
+    #[default]
     Standard,
     Hex,
-}
-
-impl Default for EntityMode {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 fn process_entities(
@@ -534,11 +529,9 @@ struct FmtWriter<'a, 'b>(&'b mut std::fmt::Formatter<'a>);
 
 impl Write for FmtWriter<'_, '_> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let s = std::str::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        self.0
-            .write_str(s)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-        Ok(s.as_bytes().len())
+        let s = std::str::from_utf8(buf).map_err(io::Error::other)?;
+        self.0.write_str(s).map_err(io::Error::other)?;
+        Ok(s.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {

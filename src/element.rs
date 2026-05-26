@@ -551,10 +551,7 @@ impl Element {
     }
 
     pub fn next_sibling_element(&self, doc: &Document) -> Option<Element> {
-        let parent = match self.parent(doc) {
-            Some(v) => v,
-            None => return None,
-        };
+        let parent = self.parent(doc)?;
 
         let children = parent.children(doc);
         let mut index = children
@@ -571,10 +568,7 @@ impl Element {
     }
 
     pub fn prev_sibling_element(&self, doc: &Document) -> Option<Element> {
-        let parent = match self.parent(doc) {
-            Some(v) => v,
-            None => return None,
-        };
+        let parent = self.parent(doc)?;
 
         let children = parent.children(doc);
         let mut index = children
