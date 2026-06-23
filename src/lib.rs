@@ -94,7 +94,7 @@ mod tests {
             .unwrap()
             .remove_child(&mut doc, Node::Element(foo));
 
-        println!("{}", doc);
+        assert_eq!("<root><child><child2/><child2/></child><potato/></root>", format!("{}", doc));
     }
 
     #[test]
@@ -102,7 +102,7 @@ mod tests {
         let doc = Document::from_str(
             r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
         ).unwrap();
-        println!("{}", doc);
+        assert_eq!("<root xmlns:x=\"http://lol\" someattr=\"true\">lol <x:sparta/><sparta derp=\"9000\"/></root>", format!("{}", doc));
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod tests {
         let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
         let doc = Document::from_str(input).unwrap();
 
-        println!("{}", doc);
+        assert_eq!("<俄语 լեզու=\"ռուսերեն\">данные</俄语>", format!("{}", doc));
     }
 
     #[test]
@@ -118,7 +118,7 @@ mod tests {
         let input = "<root>ذ&amp;اكرة USB كبيرة السعة التخزينية (عصا، قرص ذاكرة USB)...</root>";
         let doc = Document::from_str(input).unwrap();
 
-        println!("{}", doc);
+        assert_eq!("<root>ذ&amp;اكرة USB كبيرة السعة التخزينية (عصا، قرص ذاكرة USB)...</root>", format!("{}", doc));
     }
 
     #[test]
@@ -129,7 +129,7 @@ mod tests {
         </root>";
         let doc = Document::from_str(input).unwrap();
 
-        println!("{}", doc);
+        assert_eq!("<root>\n            Text text &#x202D;text text\n            &#x202E;text text &#x202D;text text\n        </root>", format!("{}", doc));
     }
 
     #[test]
@@ -147,8 +147,8 @@ mod tests {
             },
         );
 
-        println!("{}", doc);
-        println!("{}", doc2);
+        assert_eq!("<俄语 լեզու=\"ռուսերեն\">данные</俄语>", format!("{}", doc));
+        assert_eq!("<俄语 լեզու=\"ռուսերեն\">данные<lol/></俄语>", format!("{}", doc2));
     }
 
     #[test]
@@ -164,16 +164,16 @@ mod tests {
         </root>
         "#;
         let doc = Document::from_str(input).unwrap();
-        println!("{:#4.120}", doc);
-        println!("{:#2.60}", doc);
-        println!("{:#1.400}", doc);
+        assert_eq!("<root attribute1=\"potato potato potato\"\n    attribute2=\"potato potato potato\"\n    attribute3=\"potato potato potato\"\n    attribute4=\"potato potato potato\">\n    <interesting attribute1=\"potato potato potato\" attribute2=\"potato potato potato\" />\n    <another-one/>\n</root>\n", format!("{:#4.120}", doc));
+        assert_eq!("<root attribute1=\"potato potato potato\"\n  attribute2=\"potato potato potato\"\n  attribute3=\"potato potato potato\"\n  attribute4=\"potato potato potato\">\n  <interesting attribute1=\"potato potato potato\"\n    attribute2=\"potato potato potato\" />\n  <another-one/>\n</root>\n", format!("{:#2.60}", doc));
+        assert_eq!("<root attribute1=\"potato potato potato\" attribute2=\"potato potato potato\" attribute3=\"potato potato potato\" attribute4=\"potato potato potato\">\n <interesting attribute1=\"potato potato potato\" attribute2=\"potato potato potato\" />\n <another-one/>\n</root>\n", format!("{:#1.400}", doc));
     }
 
     #[test]
     fn hmm() {
         let input = "<?xml version=\"1.1\" ?>some random text<![CDATA[<hahaha>]]><!DOCTYPE root ahh ahhhh><!-- pre --><root/><!-- comment --> some other text";
         let doc = Document::from_str(input).unwrap();
-        println!("{:#}", doc);
+        assert_eq!("<?xml version=\"1.1\"?>\nsome random text\n<![CDATA[<hahaha>]]>\n<!DOCTYPE root ahh ahhhh>\n<!-- pre -->\n<root/>\n<!-- comment -->\nsome other text\n", format!("{:#}", doc));
     }
 
     #[test]
@@ -192,7 +192,7 @@ mod tests {
             .query_selector(&doc, &Selector::new("d").unwrap())
             .unwrap();
         d.append_new_element_after(&mut doc, ("potato", [("hihi", "oij")]));
-        println!("{:#}", doc);
+        assert_eq!("<root>\n  <a/>\n  <b/>\n  <potato hihi=\"oij\" />\n  <c/>\n  <d/>\n  <potato hihi=\"oij\" />\n</root>\n", format!("{:#}", doc));
     }
 
     #[test]
@@ -247,7 +247,7 @@ mod tests {
                 .into(),
             },
         );
-        println!("{:#}", doc);
+        assert_eq!("<merge xmlns:latin=\"http://schemas.android.com/apk/res-auto\">\n  <include latin:keyboardLayout=\"@xml/key_styles_common\" />\n  <Row>\n    <include latin:keyboardLayout=\"@xml/potato\" latin:keyWidth=\"8.18%p\" />\n  </Row>\n  <Row>\n    <include latin:keyboardLayout=\"@xml/potato\" latin:keyWidth=\"8.18%p\" />\n  </Row>\n  <include latin:keyboardLayout=\"@xml/row_qwerty4\" />\n</merge>\n", format!("{:#}", doc));
     }
 
     #[test]
@@ -257,7 +257,7 @@ mod tests {
 
         doc.root().set_text(&mut doc, "potato");
 
-        println!("{:#}", doc);
+        assert_eq!("<root>\n  potato\n</root>\n", format!("{:#}", doc));
     }
 
     #[test]
@@ -281,7 +281,7 @@ mod tests {
         );
 
         inner.append_element(&mut doc, a);
-        println!("{:#}", doc);
+        assert_eq!("<root>\n  <test>\n    <a/>\n  </test>\n</root>\n", format!("{:#}", doc));
     }
 
     #[test]
