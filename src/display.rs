@@ -28,6 +28,7 @@ pub struct Config {
     pub(crate) max_line_length: usize,
     pub(crate) entity_mode: EntityMode,
     pub(crate) indent_text_nodes: bool,
+    pub(crate) tight: bool,
 }
 
 impl Config {
@@ -39,6 +40,7 @@ impl Config {
             max_line_length: 120,
             entity_mode: EntityMode::Standard,
             indent_text_nodes: true,
+            tight: false,
         }
     }
 
@@ -64,6 +66,15 @@ impl Config {
 
     pub fn indent_text_nodes(mut self, indent_text_nodes: bool) -> Self {
         self.indent_text_nodes = indent_text_nodes;
+        self
+    }
+
+    /// Enables tight mode: an element and its entire subtree are collapsed onto a single line
+    /// when the result fits within `max_line_length`, including elements that contain child
+    /// elements (e.g. `<li><a href="...">Earth</a></li>`). Without this, only text-only
+    /// content is kept inline and child elements always nest onto their own lines.
+    pub fn tight(mut self) -> Self {
+        self.tight = true;
         self
     }
 }
@@ -272,6 +283,121 @@ fn fmt_attrs(
     Ok(())
 }
 
+/// Renders an element onto a single line into a scratch buffer.
+///
+/// By default only text-only content is inlined: a child *element* (or other node kind such as
+/// a comment or processing instruction) causes this to return `None`, so those nest onto their
+/// own lines. When [`Config::tight`] is set, the entire subtree is collapsed instead, recursing
+/// into child elements. Either way it returns `None` if the result would contain a newline or
+/// grow past `budget` bytes, signalling the caller to fall back to multi-line rendering.
+/// `budget` is the line-length budget *excluding* the leading indentation.
+fn try_inline(
+    element: &ElementValue,
+    key: DocKey,
+    config: &Config,
+    context: &State,
+    budget: usize,
+) -> Option<String> {
+    let mut buf = String::new();
+    flat_element(&mut buf, element, key, config, context, budget)?;
+    Some(buf)
+}
+
+fn flat_element(
+    buf: &mut String,
+    element: &ElementValue,
+    key: DocKey,
+    config: &Config,
+    context: &State,
+    budget: usize,
+) -> Option<()> {
+    use std::fmt::Write as _;
+
+    let _ = write!(buf, "<{}", element.name);
+    if let Some(attrs) = context.doc.attrs.get(key) {
+        for (k, v) in attrs.iter() {
+            let _ = write!(
+                buf,
+                " {}=\"{}\"",
+                k,
+                process_entities(v, config.entity_mode, false, false)
+            );
+            check(buf, budget)?;
+        }
+    }
+
+    // Only reached for empty child elements while recursing in tight mode; the top-level
+    // empty case is handled earlier in `ElementValue::print`.
+    if element.children.is_empty() {
+        let _ = write!(buf, "{:>end_pad$}/>", "", end_pad = config.end_pad);
+        return check(buf, budget);
+    }
+
+    let _ = write!(buf, ">");
+    check(buf, budget)?;
+
+    let last = element.children.len() - 1;
+    for (i, child) in element.children.iter().enumerate() {
+        match context.doc.nodes.get(child.as_key())? {
+            NodeValue::Element(e) => {
+                // Child elements nest onto their own lines unless tight mode is enabled.
+                if !config.tight {
+                    return None;
+                }
+                flat_element(buf, e, child.as_key(), config, context, budget)?;
+            }
+            NodeValue::Text(t) => {
+                // Trim only the content boundaries: leading whitespace of the first child and
+                // trailing whitespace of the last child. Whitespace *between* siblings is
+                // significant and is preserved.
+                let mut s: &str = t;
+                if i == 0 {
+                    s = s.trim_start();
+                }
+                if i == last {
+                    s = s.trim_end();
+                }
+                let _ = write!(
+                    buf,
+                    "{}",
+                    process_entities(s, config.entity_mode, true, true)
+                );
+            }
+            NodeValue::CData(t) => {
+                let _ = write!(buf, "<![CDATA[{t}]]>");
+            }
+            NodeValue::Comment(t) => {
+                if !config.tight {
+                    return None;
+                }
+                let _ = write!(buf, "<!--{t}-->");
+            }
+            NodeValue::ProcessingInstruction(t) => {
+                if !config.tight {
+                    return None;
+                }
+                let _ = write!(buf, "<?{t}?>");
+            }
+            // A doctype is never a legal element child; refuse to inline if we hit one.
+            NodeValue::DocumentType(_) => return None,
+        }
+        check(buf, budget)?;
+    }
+
+    let _ = write!(buf, "</{}>", element.name);
+    check(buf, budget)
+}
+
+/// Bails out (`None`) once the buffer overflows `budget` or contains a newline.
+#[inline]
+fn check(buf: &str, budget: usize) -> Option<()> {
+    if buf.len() > budget || buf.as_bytes().contains(&b'\n') {
+        None
+    } else {
+        Some(())
+    }
+}
+
 impl Print<Config, State<'_>> for ElementValue {
     fn print(
         &self,
@@ -328,6 +454,16 @@ impl Print<Config, State<'_>> for ElementValue {
             .children
             .iter()
             .any(|x| matches!(x, Node::Text(_) | Node::CDataSection(_)));
+
+        // Keep text-only content on a single line when it fits within `max_line_length`.
+        // Elements with child elements still nest onto their own lines (handled below).
+        if context.is_pretty {
+            let budget = config.max_line_length.saturating_sub(context.indent);
+            if let Some(inline) = try_inline(self, context.key, config, context, budget) {
+                writeln!(f, "{:>indent$}{inline}", "", indent = context.indent)?;
+                return Ok(());
+            }
+        }
 
         match context.doc.attrs.get(context.key) {
             Some(attrs) if !attrs.is_empty() => {

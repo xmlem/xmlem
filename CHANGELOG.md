@@ -1,5 +1,15 @@
 ## Unreleased
 
+- Pretty-printing now keeps an element's text content on the same line as its
+  tags when it fits within `max_line_length`, instead of always breaking it onto
+  its own line. Child elements still nest onto their own lines ([#14]).
+- Added `Config::tight()`, which collapses an element and its entire subtree onto
+  a single line when it fits within `max_line_length` (e.g.
+  `<li><a href="...">Earth</a></li>`), including elements that contain child
+  elements ([#14]).
+
+[#14]: https://github.com/xmlem/xmlem/issues/14
+
 ## 0.4.1
 
 -  Fix entities handling.

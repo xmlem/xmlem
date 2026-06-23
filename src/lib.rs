@@ -340,7 +340,148 @@ mod tests {
     #[test]
     fn pretty_minimizes_whitespace() {
         let doc = Document::from_str("<text>\n    Actual Output\n    </text>").unwrap();
-        assert_eq!(doc.to_string_pretty(), "<text>\n  Actual Output\n</text>\n");
+        assert_eq!(doc.to_string_pretty(), "<text>Actual Output</text>\n");
+    }
+
+    #[test]
+    fn collapse_simple_text_element() {
+        let doc = Document::from_str("<text>\n    Actual Output\n    </text>").unwrap();
+        assert_eq!(doc.to_string_pretty(), "<text>Actual Output</text>\n");
+    }
+
+    #[test]
+    fn collapse_nested_anchor_in_li() {
+        // The <li> still nests its child element, but the <a>'s text content stays inline.
+        let doc = Document::from_str(
+            r#"<li><a href="https://en.wikipedia.org/wiki/Earth">Earth</a></li>"#,
+        )
+        .unwrap();
+        assert_eq!(
+            doc.to_string_pretty(),
+            "<li>\n  <a href=\"https://en.wikipedia.org/wiki/Earth\">Earth</a>\n</li>\n"
+        );
+    }
+
+    #[test]
+    fn mixed_content_still_nests() {
+        // An element containing a child element keeps nesting; only the inner text-only
+        // element (<b>) collapses inline.
+        let doc = Document::from_str("<p>Some <b>bold</b> text</p>").unwrap();
+        assert_eq!(
+            doc.to_string_pretty(),
+            "<p>\n  Some\n  <b>bold</b>\n  text\n</p>\n"
+        );
+    }
+
+    #[test]
+    fn collapse_preserves_cdata_literally() {
+        let doc = Document::from_str("<a><![CDATA[ raw <b> ]]></a>").unwrap();
+        assert_eq!(doc.to_string_pretty(), "<a><![CDATA[ raw <b> ]]></a>\n");
+    }
+
+    #[test]
+    fn collapse_internal_newline_forces_multiline() {
+        let doc = Document::from_str("<text>Actual\nOutput</text>").unwrap();
+        // A trimmed text node that still contains a newline must not collapse.
+        assert_ne!(doc.to_string_pretty(), "<text>Actual\nOutput</text>\n");
+    }
+
+    #[test]
+    fn text_breaks_when_too_long() {
+        use crate::display::Config;
+        // Text content longer than max_line_length breaks onto its own line.
+        let doc = Document::from_str("<text>this text is fairly long</text>").unwrap();
+        let cfg = Config::default_pretty().max_line_length(10);
+        assert_eq!(
+            doc.to_string_pretty_with_config(&cfg),
+            "<text>\n  this text is fairly long\n</text>\n"
+        );
+    }
+
+    #[test]
+    fn child_elements_nest_text_inlines() {
+        // The container nests its child elements; each text-only child stays inline.
+        let doc =
+            Document::from_str("<outer><inner>short</inner><inner>also short</inner></outer>")
+                .unwrap();
+        let out = doc.to_string_pretty();
+        assert_eq!(
+            out,
+            "<outer>\n  <inner>short</inner>\n  <inner>also short</inner>\n</outer>\n"
+        );
+    }
+
+    #[test]
+    fn collapse_tiny_limit_reproduces_old_layout() {
+        use crate::display::Config;
+        let doc = Document::from_str("<text>\n    Actual Output\n    </text>").unwrap();
+        let cfg = Config::default_pretty().max_line_length(0);
+        assert_eq!(
+            doc.to_string_pretty_with_config(&cfg),
+            "<text>\n  Actual Output\n</text>\n"
+        );
+    }
+
+    #[test]
+    fn collapse_roundtrip_stable() {
+        let input = r#"<li><a href="https://en.wikipedia.org/wiki/Earth">Earth</a></li>"#;
+        let once = Document::from_str(input).unwrap().to_string_pretty();
+        let twice = Document::from_str(&once).unwrap().to_string_pretty();
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn tight_collapses_nested_subtree() {
+        use crate::display::Config;
+        let doc = Document::from_str(
+            r#"<li><a href="https://en.wikipedia.org/wiki/Earth">Earth</a></li>"#,
+        )
+        .unwrap();
+        let cfg = Config::default_pretty().tight();
+        assert_eq!(
+            doc.to_string_pretty_with_config(&cfg),
+            "<li><a href=\"https://en.wikipedia.org/wiki/Earth\">Earth</a></li>\n"
+        );
+    }
+
+    #[test]
+    fn tight_breaks_when_too_long() {
+        use crate::display::Config;
+        // The subtree exceeds the limit, so it falls back to nesting; the text-only children
+        // still collapse inline.
+        let doc = Document::from_str("<root><a>one</a><b>two</b></root>").unwrap();
+        let cfg = Config::default_pretty().tight().max_line_length(20);
+        assert_eq!(
+            doc.to_string_pretty_with_config(&cfg),
+            "<root>\n  <a>one</a>\n  <b>two</b>\n</root>\n"
+        );
+    }
+
+    #[test]
+    fn tight_roundtrip_stable() {
+        use crate::display::Config;
+        let cfg = Config::default_pretty().tight();
+        let input = r#"<li><a href="https://en.wikipedia.org/wiki/Earth">Earth</a></li>"#;
+        let once = Document::from_str(input)
+            .unwrap()
+            .to_string_pretty_with_config(&cfg);
+        let twice = Document::from_str(&once)
+            .unwrap()
+            .to_string_pretty_with_config(&cfg);
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn tight_default_off_still_nests() {
+        // Without tight(), the default text-only inlining keeps child elements nested.
+        let doc = Document::from_str(
+            r#"<li><a href="https://en.wikipedia.org/wiki/Earth">Earth</a></li>"#,
+        )
+        .unwrap();
+        assert_eq!(
+            doc.to_string_pretty(),
+            "<li>\n  <a href=\"https://en.wikipedia.org/wiki/Earth\">Earth</a>\n</li>\n"
+        );
     }
 
     #[test]
