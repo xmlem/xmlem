@@ -266,7 +266,7 @@ mod tests {
 
         doc.root().set_text(&mut doc, "potato");
 
-        assert_eq!("<root>\n  potato\n</root>\n", format!("{:#}", doc));
+        assert_eq!("<root>potato</root>\n", format!("{:#}", doc));
     }
 
     #[test]
