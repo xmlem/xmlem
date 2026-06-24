@@ -94,7 +94,10 @@ mod tests {
             .unwrap()
             .remove_child(&mut doc, Node::Element(foo));
 
-        assert_eq!("<root><child><child2/><child2/></child><potato/></root>", format!("{}", doc));
+        assert_eq!(
+            "<root><child><child2/><child2/></child><potato/></root>",
+            format!("{}", doc)
+        );
     }
 
     #[test]
@@ -118,7 +121,10 @@ mod tests {
         let input = "<root>ذ&amp;اكرة USB كبيرة السعة التخزينية (عصا، قرص ذاكرة USB)...</root>";
         let doc = Document::from_str(input).unwrap();
 
-        assert_eq!("<root>ذ&amp;اكرة USB كبيرة السعة التخزينية (عصا، قرص ذاكرة USB)...</root>", format!("{}", doc));
+        assert_eq!(
+            "<root>ذ&amp;اكرة USB كبيرة السعة التخزينية (عصا، قرص ذاكرة USB)...</root>",
+            format!("{}", doc)
+        );
     }
 
     #[test]
@@ -148,7 +154,10 @@ mod tests {
         );
 
         assert_eq!("<俄语 լեզու=\"ռուսերեն\">данные</俄语>", format!("{}", doc));
-        assert_eq!("<俄语 լեզու=\"ռուսերեն\">данные<lol/></俄语>", format!("{}", doc2));
+        assert_eq!(
+            "<俄语 լեզու=\"ռուսերեն\">данные<lol/></俄语>",
+            format!("{}", doc2)
+        );
     }
 
     #[test]
@@ -281,7 +290,10 @@ mod tests {
         );
 
         inner.append_element(&mut doc, a);
-        assert_eq!("<root>\n  <test>\n    <a/>\n  </test>\n</root>\n", format!("{:#}", doc));
+        assert_eq!(
+            "<root>\n  <test>\n    <a/>\n  </test>\n</root>\n",
+            format!("{:#}", doc)
+        );
     }
 
     #[test]
